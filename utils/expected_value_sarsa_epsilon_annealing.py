@@ -24,10 +24,12 @@ class EVSarsaAgent:
 
     def get_qvalue(self, state, action):
         """ Returns Q(state,action) """
+        state = tuple(state)
         return self._qvalues[state][action]
 
     def set_qvalue(self, state, action, value):
         """ Sets the Qvalue for [state,action] to the given value """
+        state = tuple(state)
         self._qvalues[state][action] = value
 
     # ---------------------START OF YOUR CODE---------------------#

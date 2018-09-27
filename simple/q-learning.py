@@ -1,10 +1,11 @@
 from IPython.display import clear_output
-from Utils.QLearningAgent import QLearningAgent
-from Utils.expected_value_sarsa_epsilon_annealing import EVSarsaAgent
-from TicTacToe.tic_tac_toe import TicTacToe
+from utils.QLearningAgent import QLearningAgent
+from utils.expected_value_sarsa_epsilon_annealing import EVSarsaAgent
+from tic_tac_toe.simple_tic_tac_toe import TicTacToe
+from pandas import Series
 import numpy as np
 import matplotlib.pyplot as plt
-
+import pandas as pd
 
 
 """
@@ -20,8 +21,8 @@ n_actions = env.n
 print(n_actions)
 print(env)
 
-agent = QLearningAgent(alpha=0.2, epsilon=0.1, discount=0.99,
-                       get_legal_actions = lambda s: range(n_actions))
+agent = QLearningAgent(alpha=0.5, epsilon=0.25, discount=0.99,
+                       get_legal_actions=lambda s: range(n_actions))
 
 
 def play_and_train(env, agent, t_max=10 ** 4):
@@ -34,6 +35,10 @@ def play_and_train(env, agent, t_max=10 ** 4):
 
     for t in range(t_max):
         a = agent.get_action(s)  # <get agent to pick action given state s>
+
+        action = env.states
+        if action[a] == 1:
+            continue
 
         next_s, r, done = env.step(a)
 
@@ -58,18 +63,11 @@ for i in range(6000):
         plt.show()
 
 
-
-
-
 """
     !!!
     Expected value SARSA + epsilon reducing
     !!!
 """
-
-
-agent_sarsa = EVSarsaAgent(alpha=0.5,epsilon=0.25,discount=0.99,
-                       get_legal_actions = lambda s: range(n_actions))
 
 
 def play_and_train(env, agent, t_max=10 ** 4):
@@ -83,18 +81,29 @@ def play_and_train(env, agent, t_max=10 ** 4):
     for t in range(t_max):
         a = agent.get_action(s)
 
-        next_s, r, done, _ = env.step(a)
+        action = env.states
+        if action[a] == 1:
+            continue
+
+        next_s, r, done = env.step(a)
         agent.update(s, a, r, next_s)
 
         s = next_s
         total_reward += r
-        if done: break
+        if done:
+            break
 
     return total_reward
 
 
-moving_average = lambda ts, span=100: ewma(Series(ts), min_periods=span // 10, span=span).values
+def moving_average(ts, span=100):
+    df = pd.DataFrame(Series(ts))
+    df.ewm(min_periods=span // 10, span=span)
+    return df
 
+
+agent_sarsa = EVSarsaAgent(alpha=0.5,epsilon=0.25,discount=0.99,
+                           get_legal_actions=lambda s: range(n_actions))
 rewards_sarsa = []
 
 for i in range(5000):

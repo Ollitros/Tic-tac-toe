@@ -2,7 +2,8 @@ import numpy as np
 import tensorflow as tf
 import keras
 import keras.layers as L
-from TicTacToe.tic_tac_toe import TicTacToe
+from tic_tac_toe.standart_tic_tac_toe import TicTacToe
+from keras.models import save_model, load_model
 
 
 def get_action(state, epsilon=0):
@@ -30,6 +31,10 @@ def generate_session(t_max=1000, epsilon=0, train=False):
 
     for t in range(t_max):
         a = get_action(s, epsilon=epsilon)
+
+        action = env.states
+        if action[a] == 1:
+            continue
 
         next_s, r, done = env.step(a)
 
@@ -79,10 +84,10 @@ rewards_ph = tf.placeholder('float32', shape=[None])
 next_states_ph = tf.placeholder('float32', shape=(None,) + state_dim)
 is_done_ph = tf.placeholder('bool', shape=[None])
 
-#get q-values for all actions in current states
+# get q-values for all actions in current states
 predicted_qvalues = network(states_ph)
 
-#select q-values for chosen actions
+# select q-values for chosen actions
 predicted_qvalues_for_actions = tf.reduce_sum(predicted_qvalues * tf.one_hot(actions_ph, n_actions), axis=1)
 
 gamma = 0.99
@@ -99,7 +104,7 @@ target_qvalues_for_actions = rewards_ph + gamma * next_state_values
 # at the last state we shall use simplified formula: Q(s,a) = r(s,a) since s' doesn't exist
 target_qvalues_for_actions = tf.where(is_done_ph, rewards_ph, target_qvalues_for_actions)
 
-#mean squared error loss to minimize
+# mean squared error loss to minimize
 loss = (predicted_qvalues_for_actions - tf.stop_gradient(target_qvalues_for_actions)) ** 2
 loss = tf.reduce_mean(loss)
 
@@ -129,4 +134,5 @@ for i in range(100):
 
 sessions = [generate_session(epsilon=0, train=False) for _ in range(1000)]
 
+save_model(network, 'data/models/approx.h5')
 

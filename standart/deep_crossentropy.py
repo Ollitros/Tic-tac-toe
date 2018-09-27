@@ -1,7 +1,7 @@
 from sklearn.neural_network import MLPClassifier
 import numpy as np
 import matplotlib.pyplot as plt
-from TicTacToe.tic_tac_toe import TicTacToe
+from tic_tac_toe.standart_tic_tac_toe import TicTacToe
 
 
 def show_progress(batch_rewards, log, percentile, reward_range=[-990, +100]):
@@ -69,6 +69,11 @@ def generate_session(t_max=1000):
         print("Probs: ", probs)
         a = np.random.choice(n_actions, 1, p=probs)[0]
         print("Action:", a)
+
+        action = env.states
+        if action[a] == 1:
+            continue
+
         new_s, r, done = env.step(a)
 
         # record sessions like you did before
@@ -77,8 +82,10 @@ def generate_session(t_max=1000):
         total_reward += r
 
         s = new_s
-        print("r = ", r)
+
         print("new_state - ", new_s)
+        print("r = ", r)
+
         if done:
             break
     return states, actions, total_reward
@@ -101,8 +108,8 @@ print([env.reset()]*n_actions)
 agent.fit([env.reset()]*n_actions, range(n_actions))
 
 
-n_sessions = 50
-percentile = 30
+n_sessions = 100
+percentile = 70
 log = []
 
 for i in range(50):
@@ -122,5 +129,3 @@ for i in range(50):
 
     if np.mean(batch_rewards) > 50:
         print("You Win! You may stop training now via KeyboardInterrupt.")
-
-
