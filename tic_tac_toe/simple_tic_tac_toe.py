@@ -3,11 +3,11 @@ import numpy as np
 
 class TicTacToe:
 
-    def __init__(self, game_option=1):
+    def __init__(self, game_mode=1):
 
-        assert game_option == 1 or game_option == 2
+        assert game_mode == 1 or game_mode == 2
 
-        self.game_option = game_option
+        self.game_option = game_mode
         self.actions = None
         self.states = None
 

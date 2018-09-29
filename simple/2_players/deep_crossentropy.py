@@ -20,7 +20,7 @@ def show_progress(batch_rewards_1, batch_rewards_2, log1, log2, percentile, rewa
     plt.figure(figsize=[8, 4])
     plt.subplot(1, 2, 1)
     plt.plot(list(zip(*log1))[0], label='Mean rewards_1')
-    plt.plot(list(zip(*log1))[1], label='Reward thresholds_1')
+    # plt.plot(list(zip(*log1))[1], label='Reward thresholds_1')
     plt.legend()
     plt.grid()
 
@@ -33,7 +33,7 @@ def show_progress(batch_rewards_1, batch_rewards_2, log1, log2, percentile, rewa
     print("mean reward = %.3f, threshold=%.3f" % (mean_reward_2, threshold_2))
     plt.subplot(1, 2, 1)
     plt.plot(list(zip(*log2))[0], label='Mean rewards_2')
-    plt.plot(list(zip(*log2))[1], label='Reward thresholds_2')
+    # plt.plot(list(zip(*log2))[1], label='Reward thresholds_2')
     plt.legend()
     plt.grid()
 
@@ -71,7 +71,7 @@ def select_elites(states_batch, actions_batch, rewards_batch, percentile=50):
     return elite_states, elite_actions
 
 
-def generate_session(t_max=10):
+def generate_session(step, t_max=10):
     states_1, actions_1 = [], []
     total_reward_1 = 0
 
@@ -79,26 +79,50 @@ def generate_session(t_max=10):
     total_reward_2 = 0
 
     s = env.reset()
-    print("State-reset: ", s)
+    # print("State-reset: ", s)
+
+    done = False
+    stop = False
+
+    # Each agent has equal first steps in all games
+    if step % 2 == 0:
+        agents = (agent_1, agent_2)
+        print(step)
+    else:
+        agents = (agent_2, agent_1)
+        print(step)
 
     for t in range(t_max):
 
-        for agent in (agent_1, agent_2):
+        for agent in agents:
 
             # a vector of action probabilities in current state
             probs = agent.predict_proba([s])[0]
             a = np.random.choice(n_actions, 1, p=probs)[0]
 
-            action = env.states
-            if action[a] == 1 or action[a] == 2:
-                continue
+            got = True
+
+            while got:
+
+                action = env.states
+
+                nonzero = np.count_nonzero(action)
+                if nonzero == n_actions:
+                    stop = True
+                    break
+                if action[a] == 1 or action[a] == 2:
+                    a = np.random.choice(n_actions, 1, p=probs)[0]
+                else:
+                    got = False
+
+            if stop:
+                break
 
             step = 1
             if agent == agent_2:
                 step = 2
             new_s, r, done = env.step(a, step)
 
-            # record sessions like you did before
             if agent == agent_1:
                 states_1.append(s)
                 actions_1.append(a)
@@ -110,15 +134,18 @@ def generate_session(t_max=10):
 
             s = new_s
 
-            print("new_state - ", new_s)
-            print("r = ", r)
+            # print("new_state - ", new_s)
+            # print("r = ", r)
 
             if done:
                 break
+
+        if done or stop:
+            break
     return [states_1, actions_1, total_reward_1], [states_2, actions_2, total_reward_2]
 
 
-env = TicTacToe(game_option=2)
+env = TicTacToe(game_mode=2)
 env.reset()
 n_actions = env.n
 print("Actions: \n", env.actions)
@@ -150,11 +177,13 @@ n_sessions = 100
 percentile = 70
 log1 = []
 log2 = []
+step = 300
 
-for i in range(50):
+for k in range(step):
+
     print('\n\n\n !!! STEP - ', i+1)
     # generate new sessions
-    results = [generate_session() for i in range(n_sessions)]
+    results = [generate_session(step=i) for i in range(n_sessions)]
 
     # print(results)
     # print(results[0])
@@ -173,18 +202,20 @@ for i in range(50):
         session_2.append(results[i][1])
 
     # Feed Agent 1
-    batch_states, batch_actions, batch_rewards_1 = map(np.array, zip(*session_1))
-    elite_states, elite_actions = select_elites(batch_states, batch_actions, batch_rewards_1, percentile)
-    #     print(elite_states[:3])
-    #     print(elite_actions[:3])
-    agent_1.fit(elite_states, elite_actions)
+    batch_states_1, batch_actions_1, batch_rewards_1 = map(np.array, zip(*session_1))
+    elite_states_1, elite_actions_1 = select_elites(batch_states_1, batch_actions_1, batch_rewards_1, percentile)
 
     # Feed Agent 2
-    batch_states, batch_actions, batch_rewards_2 = map(np.array, zip(*session_2))
-    elite_states, elite_actions = select_elites(batch_states, batch_actions, batch_rewards_2, percentile)
-    #     print(elite_states[:3])
-    #     print(elite_actions[:3])
-    agent_2.fit(elite_states, elite_actions)
+    batch_states_2, batch_actions_2, batch_rewards_2 = map(np.array, zip(*session_2))
+    elite_states_2, elite_actions_2 = select_elites(batch_states_2, batch_actions_2, batch_rewards_2, percentile)
 
-    show_progress(batch_rewards_1, batch_rewards_2, log1, log2, percentile, reward_range=[0, np.max(batch_rewards_1)])
-    # show_progress(batch_rewards_1, batch_rewards_2, log1, log2, percentile)
+    # Very big and powerful crutch
+    if len(np.unique(elite_actions_1)) < n_actions or len(np.unique(elite_actions_2)) < n_actions:
+        continue
+
+    agent_1.fit(elite_states_1, elite_actions_1)
+    agent_2.fit(elite_states_2, elite_actions_2)
+
+    if k % 2 == 0:
+        show_progress(batch_rewards_1, batch_rewards_2, log1, log2, percentile, reward_range=[0, np.max(batch_rewards_1)])
+        # show_progress(batch_rewards_1, batch_rewards_2, log1, log2, percentile)
