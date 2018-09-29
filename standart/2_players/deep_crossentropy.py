@@ -118,6 +118,7 @@ def generate_session(step, t_max=10):
             if stop:
                 break
 
+            # print(agent, a)
             step = 1
             if agent == agent_2:
                 step = 2

@@ -93,7 +93,6 @@ def generate_session(step, t_max=10):
         print(step)
 
     for t in range(t_max):
-
         for agent in agents:
 
             # a vector of action probabilities in current state
@@ -117,7 +116,7 @@ def generate_session(step, t_max=10):
 
             if stop:
                 break
-
+            # print(agent, a)
             step = 1
             if agent == agent_2:
                 step = 2
@@ -142,6 +141,7 @@ def generate_session(step, t_max=10):
 
         if done or stop:
             break
+    print(total_reward_1, total_reward_2)
     return [states_1, actions_1, total_reward_1], [states_2, actions_2, total_reward_2]
 
 
@@ -181,7 +181,7 @@ step = 300
 
 for k in range(step):
 
-    print('\n\n\n !!! STEP - ', i+1)
+    print('\n\n\n !!! STEP - ', k+1)
     # generate new sessions
     results = [generate_session(step=i) for i in range(n_sessions)]
 
