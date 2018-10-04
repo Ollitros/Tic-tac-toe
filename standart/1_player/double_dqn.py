@@ -44,13 +44,15 @@ class DQN(nn.Module):
         return self.layers(x)
 
     def act(self, state, epsilon):
+        cond = True
         if random.random() > epsilon:
             state = Variable(torch.FloatTensor(state).unsqueeze(0), volatile=True)
-            q_value = self.forward(state)
-            action = q_value.max(1)[1].data[0]
+            action = self.forward(state)
+
         else:
-            action = random.randrange(env.n)
-        return action
+            cond = False
+            action = list(range(env.n))
+        return action, cond
 
 
 def update_target(current_model, target_model):
@@ -139,13 +141,36 @@ episode_reward = 0
 state = env.reset()
 for frame_idx in range(1, num_frames + 1):
     epsilon = epsilon_by_frame(frame_idx)
-    action = current_model.act(state, epsilon)
-    action = int(action)
-
+    actions, cond = current_model.act(state, epsilon)
     a = env.states
-    if a[action] == 1:
-        continue
 
+    if cond:
+
+        actions = actions.tolist()
+
+        while True:
+            maximum = np.max(actions)
+            index_max = np.argmax(actions)
+
+            if a[index_max] == 1:
+                actions[0][index_max] = -10000
+            else:
+                action = index_max
+                break
+
+    else:
+        while True:
+            action = random.choice(actions)
+            if a[action] == 1:
+                continue
+            else:
+                break
+
+    print(action, cond)
+
+
+
+    action = int(action)
     next_state, reward, done = env.step(action)
     print(next_state)
     replay_buffer.push(state, action, reward, next_state, done)
