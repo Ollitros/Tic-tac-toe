@@ -132,6 +132,7 @@ def generate_session(agent_1, agent_2, step, t_max=1000, epsilon=0, train=False)
             if agent == agent_2:
                 step = 2
 
+            # print(agent, a)
             next_s, r, done = env.step(a, step)
 
             if train:
@@ -152,7 +153,7 @@ def generate_session(agent_1, agent_2, step, t_max=1000, epsilon=0, train=False)
 
         if done or stop:
             break
-
+    # print(total_reward_1, total_reward_2)
     return [total_reward_1], [total_reward_2]
 
 

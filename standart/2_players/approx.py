@@ -86,7 +86,7 @@ def get_action(state, agent, epsilon=0):
     return chosen_action
 
 
-def generate_session(agent_1, agent_2, step, t_max=1000, epsilon=0, train=False):
+def generate_session(agent_1, agent_2, step, t_max=30, epsilon=0, train=False):
     """play env with approximate q-learning agent and train it at the same time"""
     total_reward_1 = 0.0
     total_reward_2 = 0.0
@@ -129,7 +129,7 @@ def generate_session(agent_1, agent_2, step, t_max=1000, epsilon=0, train=False)
             step = 1
             if agent == agent_2:
                 step = 2
-
+            # print(agent, a)
             next_s, r, done = env.step(a, step)
 
             if train:
@@ -150,7 +150,7 @@ def generate_session(agent_1, agent_2, step, t_max=1000, epsilon=0, train=False)
 
         if done or stop:
             break
-
+    # print(total_reward_1, total_reward_2)
     return [total_reward_1], [total_reward_2]
 
 

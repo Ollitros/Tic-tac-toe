@@ -1,13 +1,12 @@
 from IPython.display import clear_output
 from collections import deque
+from tic_tac_toe.simple_tic_tac_toe import TicTacToe
 import math, random
-import gym
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.autograd as autograd
-import torch.nn.functional as F
 import matplotlib.pyplot as plt
 
 
@@ -34,11 +33,11 @@ class DQN(nn.Module):
         super(DQN, self).__init__()
 
         self.layers = nn.Sequential(
-            nn.Linear(env.observation_space.shape[0], 128),
+            nn.Linear(env.n, 128),
             nn.ReLU(),
             nn.Linear(128, 128),
             nn.ReLU(),
-            nn.Linear(128, env.action_space.n)
+            nn.Linear(128, env.n)
         )
 
     def forward(self, x):
@@ -50,7 +49,7 @@ class DQN(nn.Module):
             q_value = self.forward(state)
             action = q_value.max(1)[1].data[0]
         else:
-            action = random.randrange(env.action_space.n)
+            action = random.randrange(env.n)
         return action
 
 
@@ -99,8 +98,10 @@ def plot(frame_idx, rewards, losses):
 USE_CUDA = torch.cuda.is_available()
 Variable = lambda *args, **kwargs: autograd.Variable(*args, **kwargs).cuda() if USE_CUDA else autograd.Variable(*args, **kwargs)
 
-env_id = "CartPole-v0"
-env = gym.make(env_id)
+# env_id = "CartPole-v0"
+# env = gym.make(env_id)
+env = TicTacToe()
+env.reset()
 
 epsilon_start = 1.0
 epsilon_final = 0.01
@@ -111,8 +112,8 @@ epsilon_by_frame = lambda frame_idx: epsilon_final + (epsilon_start - epsilon_fi
 plt.plot([epsilon_by_frame(i) for i in range(10000)])
 # plt.show()
 
-current_model = DQN(env.observation_space.shape[0], env.action_space.n)
-target_model = DQN(env.observation_space.shape[0], env.action_space.n)
+current_model = DQN(env.n, env.n)
+target_model = DQN(env.n, env.n)
 
 if USE_CUDA:
     current_model = current_model.cuda()
@@ -140,7 +141,13 @@ for frame_idx in range(1, num_frames + 1):
     epsilon = epsilon_by_frame(frame_idx)
     action = current_model.act(state, epsilon)
     action = int(action)
-    next_state, reward, done, _ = env.step(action)
+
+    a = env.states
+    if a[action] == 1:
+        continue
+
+    next_state, reward, done = env.step(action)
+    print(next_state)
     replay_buffer.push(state, action, reward, next_state, done)
 
     state = next_state
