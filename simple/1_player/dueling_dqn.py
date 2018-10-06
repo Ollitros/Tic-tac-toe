@@ -1,5 +1,3 @@
-from IPython.display import clear_output
-from collections import deque
 from tic_tac_toe.simple_tic_tac_toe import TicTacToe
 import math, random
 import numpy as np
@@ -7,7 +5,16 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.autograd as autograd
+from IPython.display import clear_output
 import matplotlib.pyplot as plt
+from collections import deque
+
+
+env = TicTacToe()
+env.reset()
+
+USE_CUDA = torch.cuda.is_available()
+Variable = lambda *args, **kwargs: autograd.Variable(*args, **kwargs).cuda() if USE_CUDA else autograd.Variable(*args, **kwargs)
 
 
 class ReplayBuffer(object):
@@ -28,20 +35,32 @@ class ReplayBuffer(object):
         return len(self.buffer)
 
 
-class DQN(nn.Module):
-    def __init__(self, num_inputs, num_actions):
-        super(DQN, self).__init__()
+class DuelingDQN(nn.Module):
+    def __init__(self, num_inputs, num_outputs):
+        super(DuelingDQN, self).__init__()
 
-        self.layers = nn.Sequential(
-            nn.Linear(env.n, 128),
-            nn.ReLU(),
+        self.feature = nn.Sequential(
+            nn.Linear(num_inputs, 128),
+            nn.ReLU()
+        )
+
+        self.advantage = nn.Sequential(
             nn.Linear(128, 128),
             nn.ReLU(),
-            nn.Linear(128, env.n)
+            nn.Linear(128, num_outputs)
+        )
+
+        self.value = nn.Sequential(
+            nn.Linear(128, 128),
+            nn.ReLU(),
+            nn.Linear(128, 1)
         )
 
     def forward(self, x):
-        return self.layers(x)
+        x = self.feature(x)
+        advantage = self.advantage(x)
+        value = self.value(x)
+        return value + advantage - advantage.mean()
 
     def act(self, state, epsilon):
         cond = True
@@ -69,14 +88,13 @@ def compute_td_loss(batch_size):
     done = Variable(torch.FloatTensor(done))
 
     q_values = current_model(state)
-    next_q_values = current_model(next_state)
-    next_q_state_values = target_model(next_state)
+    next_q_values = target_model(next_state)
 
     q_value = q_values.gather(1, action.unsqueeze(1)).squeeze(1)
-    next_q_value = next_q_state_values.gather(1, torch.max(next_q_values, 1)[1].unsqueeze(1)).squeeze(1)
+    next_q_value = next_q_values.max(1)[0]
     expected_q_value = reward + gamma * next_q_value * (1 - done)
 
-    loss = (q_value - Variable(expected_q_value.data)).pow(2).mean()
+    loss = (q_value - expected_q_value.detach()).pow(2).mean()
 
     optimizer.zero_grad()
     loss.backward()
@@ -97,25 +115,14 @@ def plot(frame_idx, rewards, losses):
     plt.show()
 
 
-USE_CUDA = torch.cuda.is_available()
-Variable = lambda *args, **kwargs: autograd.Variable(*args, **kwargs).cuda() if USE_CUDA else autograd.Variable(*args, **kwargs)
-
-# env_id = "CartPole-v0"
-# env = gym.make(env_id)
-env = TicTacToe()
-env.reset()
-
 epsilon_start = 1.0
 epsilon_final = 0.01
 epsilon_decay = 500
-#
+
 epsilon_by_frame = lambda frame_idx: epsilon_final + (epsilon_start - epsilon_final) * math.exp(-1. * frame_idx / epsilon_decay)
 
-plt.plot([epsilon_by_frame(i) for i in range(10000)])
-# plt.show()
-
-current_model = DQN(env.n, env.n)
-target_model = DQN(env.n, env.n)
+current_model = DuelingDQN(env.n, env.n)
+target_model = DuelingDQN(env.n, env.n)
 
 if USE_CUDA:
     current_model = current_model.cuda()
@@ -128,9 +135,9 @@ replay_buffer = ReplayBuffer(1000)
 update_target(current_model, target_model)
 
 
-# training
+# Training
 
-num_frames = 20000
+num_frames = 10000
 batch_size = 32
 gamma = 0.99
 
@@ -167,8 +174,6 @@ for frame_idx in range(1, num_frames + 1):
                 break
 
     print(action, cond)
-
-
 
     action = int(action)
     next_state, reward, done = env.step(action)
